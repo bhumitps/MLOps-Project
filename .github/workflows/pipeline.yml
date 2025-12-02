@@ -113,4 +113,4 @@ jobs:
           IMAGE_NAME=registry.hf.space/bhumitps/mlops:latest
           echo "Pushing image: $IMAGE_NAME"
           cd tourism_project/deployment
-          docker build -t $IMAGE_NAME -f tourism_project/deployment/Dockerfile . && docker push $IMAGE_NAME
+          docker build -t $IMAGE_NAME . && docker push $IMAGE_NAME
