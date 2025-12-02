@@ -119,7 +119,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_NAME=registry.hf.space/bhumitps/amlops:latest
+          IMAGE_NAME=registry.hf.space/bhumitps-amlops:latest
           echo "Pushing image: $IMAGE_NAME"
           
           cd tourism_project/deployment
