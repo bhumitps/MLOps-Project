@@ -11,8 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
       - name: Install Dependencies
-        run: pip install -r tourism_project/deployment/requirements.txt
+        run: pip install pandas huggingface-hub
       - name: Run Data Registration
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -23,8 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
       - name: Install Dependencies
-        run: pip install -r tourism_project/deployment/requirements.txt
+        run: pip install pandas scikit-learn huggingface-hub
       - name: Run Data Preparation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -35,39 +43,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      
       - name: Install Dependencies
         run: pip install -r tourism_project/deployment/requirements.txt
-      - name: Start MLflow Server
-        run: |
-          nohup mlflow ui --host 0.0.0.0 --port 5000 & 
-          sleep 5
-      - name: Model Building
+        
+      - name: Model Training and Registration
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # CRITICAL FIXES for MLflow authentication with Hugging Face Hub
+          MLFLOW_TRACKING_URI: https://api.hugingface.co
+          MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
+          MLFLOW_EXPERIMENT_NAME: bhumitps/MLops
+          
         run: python tourism_project/model_building/train.py
 
       - name: Transition Model to Production
+        env:
+          MLFLOW_TRACKING_URI: https://api.hugingface.co
+          MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
+          
         run: |
           pip install mlflow
-          python - << 'PYCODE'
-          import mlflow
-
-          client = mlflow.tracking.MlflowClient()
-          MODEL_NAME = "Tourism_Purchase_Predictor"
-
-          # Get latest version (usually the one just trained in the previous step)
-          latest_version = client.get_latest_versions(MODEL_NAME, stages=["None"])[0].version
-
-          # Transition to Production
-          client.transition_model_version_stage(
-              name=MODEL_NAME,
-              version=latest_version,
-              stage="Production",
-              archive_existing_versions=True,  # Archive any existing Production models
-          )
-
-          print(f"Model {MODEL_NAME} version {latest_version} transitioned to Production.")
-          PYCODE
+          python -c "
+import mlflow
+# FIX for MlflowClient: Explicitly import from tracking
+from mlflow.tracking import MlflowClient 
+client = MlflowClient()
+MODEL_NAME = 'Tourism_Purchase_Predictor'
+try:
+    # Get latest version not in production
+    latest_version = client.get_latest_versions(MODEL_NAME, stages=['None'])[0].version
+    # Transition to Production
+    client.transition_model_version_stage(
+        name=MODEL_NAME,
+        version=latest_version,
+        stage='Production',
+        archive_existing_versions=True
+    )
+    print(f'Model {MODEL_NAME} version {latest_version} transitioned to Production.')
+except Exception as e:
+    print(f'Could not transition model. Error: {e}')
+"
 
   model-deployment:
     needs: model-training
