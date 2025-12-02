@@ -110,7 +110,8 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_NAME=registry.hf.space/bhumitps/mlops:latest
+          IMAGE_NAME=registry.hf.space/bhumitps-mlops:latest
+          echo "Pushing image: $IMAGE_NAME"
           cd tourism_project/deployment
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
