@@ -11,82 +11,89 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.9'
+          python-version: "3.9"
+
       - name: Install Dependencies
         run: pip install pandas huggingface-hub
+
       - name: Run Data Registration
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python tourism_project/model_building/data_register.py
+
 
   data-prep:
     needs: register-dataset
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.9'
+          python-version: "3.9"
+
       - name: Install Dependencies
         run: pip install pandas scikit-learn huggingface-hub
+
       - name: Run Data Preparation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python tourism_project/model_building/data_prep.py
+
 
   model-training:
     needs: data-prep
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.9'
-      
+          python-version: "3.9"
+
       - name: Install Dependencies
         run: pip install -r tourism_project/deployment/requirements.txt
-        
+
       - name: Model Training and Registration
         env:
-          # CRITICAL FIXES for MLflow authentication with Hugging Face Hub
           MLFLOW_TRACKING_URI: https://api.hugingface.co
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
           MLFLOW_EXPERIMENT_NAME: bhumitps/MLops
-          
         run: python tourism_project/model_building/train.py
 
       - name: Transition Model to Production
         env:
           MLFLOW_TRACKING_URI: https://api.hugingface.co
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
-          
         run: |
           pip install mlflow
-          python -c "
-import mlflow
-# FIX for MlflowClient: Explicitly import from tracking
-from mlflow.tracking import MlflowClient 
-client = MlflowClient()
-MODEL_NAME = 'Tourism_Purchase_Predictor'
-try:
-    # Get latest version not in production
-    latest_version = client.get_latest_versions(MODEL_NAME, stages=['None'])[0].version
-    # Transition to Production
-    client.transition_model_version_stage(
-        name=MODEL_NAME,
-        version=latest_version,
-        stage='Production',
-        archive_existing_versions=True
-    )
-    print(f'Model {MODEL_NAME} version {latest_version} transitioned to Production.')
-except Exception as e:
-    print(f'Could not transition model. Error: {e}')
-"
+          python - << 'EOF'
+          import mlflow
+          from mlflow.tracking import MlflowClient
+
+          client = MlflowClient()
+          MODEL_NAME = "Tourism_Purchase_Predictor"
+
+          try:
+              latest_versions = client.get_latest_versions(MODEL_NAME, stages=["None"])
+              latest_version = latest_versions[0].version
+              client.transition_model_version_stage(
+                  name=MODEL_NAME,
+                  version=latest_version,
+                  stage="Production",
+                  archive_existing_versions=True,
+              )
+              print(f"Model {MODEL_NAME} version {latest_version} transitioned to Production.")
+          except Exception as e:
+              print(f"Could not transition model. Error: {e}")
+          EOF
+
 
   model-deployment:
     needs: model-training
@@ -101,7 +108,7 @@ except Exception as e:
           username: bhumitps
           password: ${{ secrets.HF_TOKEN }}
 
-      - name: Build and Push Docker image
+      - name: Build and Push Docker Image
         run: |
           IMAGE_NAME=registry.hf.space/bhumitps/mlops:latest
           cd tourism_project/deployment
