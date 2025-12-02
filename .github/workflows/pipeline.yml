@@ -64,7 +64,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://api.hugingface.co
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
-          MLFLOW_EXPERIMENT_NAME: bhumitps/MLops
+          MLFLOW_EXPERIMENT_NAME: bhumitps/amlops
         run: python tourism_project/model_building/train.py
 
       - name: Transition Model to Production
@@ -105,12 +105,12 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: registry.hf.space
-          username: bhumitps/mlops
+          username: bhumitps/amlops
           password: ${{ secrets.HF_TOKEN }}
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_NAME=registry.hf.space/bhumitps/mlops:latest
+          IMAGE_NAME=registry.hf.space/bhumitps/amlops:latest
           echo "Pushing image: $IMAGE_NAME"
           cd tourism_project/deployment
           docker build -t $IMAGE_NAME . && docker push $IMAGE_NAME
