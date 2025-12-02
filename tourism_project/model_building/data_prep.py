@@ -1,6 +1,6 @@
 # for data manipulation
 import pandas as pd
-# for creating a folder
+# for creating a folder and env vars
 import os
 # for data preprocessing and pipeline creation
 from sklearn.model_selection import train_test_split
@@ -9,11 +9,20 @@ from sklearn.preprocessing import LabelEncoder
 # for hugging face space authentication to upload files
 from huggingface_hub import HfApi
 
-# Define constants for the dataset and output paths
-api = HfApi(token=os.getenv("HF_TOKEN"))
-DATASET_PATH = "hf://datasets/bhumitps/amlops/tourism.csv"
+# ---- Hugging Face config ----
+REPO_ID = "bhumitps/amlops"   # dataset repo id
+HF_TOKEN = os.getenv("HF_TOKEN")
+if not HF_TOKEN:
+    raise EnvironmentError("HF_TOKEN environment variable is not set. Please set it in GitHub Secrets.")
+
+api = HfApi(token=HF_TOKEN)
+
+# IMPORTANT: this must match the path_in_repo used in data_register.py
+DATASET_PATH = f"hf://datasets/{REPO_ID}/data/tourism.csv"
+
+# Load dataset from Hugging Face
 df = pd.read_csv(DATASET_PATH)
-print("Dataset loaded successfully.")
+print("Dataset loaded successfully from:", DATASET_PATH)
 
 # Drop the unique identifier
 df.drop(columns=['CustomerID'], inplace=True)
@@ -50,7 +59,6 @@ df['DurationOfPitch'].fillna(median_duration, inplace=True)
 # --- Encode Categorical Features ---
 # Label Encoding for binary categorical features (Gender: Male/Female)
 label_encoder_gender = LabelEncoder()
-# Fit and transform, including 'Other' which might be present
 df['Gender'] = label_encoder_gender.fit_transform(df['Gender'])
 
 # One-Hot Encoding for multi-class categorical features
@@ -82,15 +90,14 @@ Xtest.to_csv("Xtest.csv", index=False)
 ytrain.to_csv("ytrain.csv", index=False)
 ytest.to_csv("ytest.csv", index=False)
 
-
 files = ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]
 
-# Upload the split files to Hugging Face
+# Upload the split files to Hugging Face (optional: put them in a processed/ folder)
 for file_path in files:
     api.upload_file(
         path_or_fileobj=file_path,
-        path_in_repo=file_path.split("/")[-1],  # just the filename
-        repo_id="bhumitps/amlops",
+        path_in_repo=f"processed/{file_path}",  # e.g. processed/Xtrain.csv
+        repo_id=REPO_ID,
         repo_type="dataset",
     )
 
