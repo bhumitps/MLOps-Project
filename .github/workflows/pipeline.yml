@@ -23,8 +23,8 @@ jobs:
       - name: Run Data Registration
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # UPDATED: Use the new Space ID as the repository ID for the script
-          REPO_ID: bhumitps/amlops 
+          # Use the dataset repo id for the registration script
+          REPO_ID: bhumitps/amlops
         run: python tourism_project/model_building/data_register.py
 
 
@@ -45,8 +45,7 @@ jobs:
       - name: Run Data Preparation
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # FIX: Added REPO_ID so data_prep.py can fetch the registered data
-          REPO_ID: bhumitps/amlops 
+          REPO_ID: bhumitps/amlops
         run: python tourism_project/model_building/data_prep.py
 
 
@@ -66,15 +65,15 @@ jobs:
 
       - name: Model Training and Registration
         env:
-          MLFLOW_TRACKING_URI: https://api.hugingface.co
+          # FIXED: Correct Hugging Face API URL
+          MLFLOW_TRACKING_URI: https://api.huggingface.co
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
-          # UPDATED: Use the new Space ID for MLflow Experiment tracking
-          MLFLOW_EXPERIMENT_NAME: bhumitps/amlops 
+          MLFLOW_EXPERIMENT_NAME: bhumitps/amlops
         run: python tourism_project/model_building/train.py
 
       - name: Transition Model to Production
         env:
-          MLFLOW_TRACKING_URI: https://api.hugingface.co
+          MLFLOW_TRACKING_URI: https://api.huggingface.co
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           pip install mlflow
@@ -86,15 +85,20 @@ jobs:
           MODEL_NAME = "Tourism_Purchase_Predictor"
 
           try:
-              latest_versions = client.get_latest_versions(MODEL_NAME, stages=["None"])
-              latest_version = latest_versions[0].version
+              # Get latest version (from any stage)
+              versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+              if not versions:
+                  raise RuntimeError(f"No versions found for model {MODEL_NAME}")
+
+              latest_version = sorted(versions, key=lambda v: int(v.version))[-1]
+
               client.transition_model_version_stage(
                   name=MODEL_NAME,
-                  version=latest_version,
+                  version=latest_version.version,
                   stage="Production",
                   archive_existing_versions=True,
               )
-              print(f"Model {MODEL_NAME} version {latest_version} transitioned to Production.")
+              print(f"Model {MODEL_NAME} version {latest_version.version} transitioned to Production.")
           except Exception as e:
               print(f"Could not transition model. Error: {e}")
           EOF
@@ -110,7 +114,7 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: registry.hf.space
-          username: bhumitps/amlops 
+          username: bhumitps
           password: ${{ secrets.HF_TOKEN }}
 
       - name: Build and Push Docker Image
