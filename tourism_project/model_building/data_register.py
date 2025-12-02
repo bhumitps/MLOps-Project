@@ -8,7 +8,7 @@ from huggingface_hub import HfApi
 # Define constants for file path and repository details
 # Reads the file from the project data directory
 FILE_PATH = "tourism_project/data/tourism.csv" 
-REPO_ID = "bhumitps/MLops" 
+REPO_ID = "bhumitps/amlops" 
 REPO_TYPE = "dataset"
 
 # Check if the file exists before proceeding

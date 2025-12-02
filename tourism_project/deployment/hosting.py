@@ -11,7 +11,7 @@ api = HfApi(token=os.getenv("HF_TOKEN"))
 
 # Define project constants
 FOLDER_PATH = "tourism_project/deployment" # The local folder containing your app.py, Dockerfile, requirements.txt
-REPO_ID = "bhumitps/MLops"              # The target Hugging Face Space repository (from Details.txt)
+REPO_ID = "bhumitps/amlops"              # The target Hugging Face Space repository (from Details.txt)
 REPO_TYPE = "space"                     # The type of repository (it is a Space)
 
 print(f"Starting upload of deployment files from {FOLDER_PATH} to Hugging Face Space: {REPO_ID}")
