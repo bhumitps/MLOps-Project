@@ -1,143 +1,97 @@
-
-"""Streamlit app for Tourism Package Purchase Prediction."""
-
-import os
 import streamlit as st
 import pandas as pd
-import joblib
-from huggingface_hub import hf_hub_download
+import mlflow.pyfunc
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
 
-st.set_page_config(page_title="Tourism Package Purchase Predictor", layout="centered")
+# Load the model
+MODEL_NAME = "Tourism_Purchase_Predictor"
+# Set to 'Production' stage to fetch the latest production version
+model_uri = f"models:/{MODEL_NAME}/Production"
+# The app will fail if the model is not in the Production stage
+try:
+    model = mlflow.pyfunc.load_model(model_uri)
+except Exception as e:
+    st.error(f"Could not load MLflow model '{MODEL_NAME}' in Production stage. Error: {e}")
+    model = None
 
-st.title("Tourism Package Purchase Prediction App")
-st.write(
-    """
-This app predicts whether a customer is likely to **purchase the tourism package** (`ProdTaken`)
-based on their profile and interaction details.
-    """
-)
+st.set_page_config(layout="wide")
+st.title("Travel Package Purchase Predictor")
+st.markdown("Enter customer details to predict the likelihood of purchasing the Wellness Tourism Package.")
 
-@st.cache_resource
-def load_model():
-    """Download and load the trained tourism model from Hugging Face Hub."""
-    repo_id = "bhumitps/MLops"
-    filename = "best_tourism_model_v1.joblib"
-    model_path = hf_hub_download(
-        repo_id=repo_id,
-        filename=filename,
-        repo_type="model",
-        token=os.getenv("HF_TOKEN"),
-    )
-    model = joblib.load(model_path)
-    return model
+# --- Define Input Fields ---
+col1, col2 = st.columns(2)
 
-model = load_model()
+with col1:
+    age = st.number_input("Age", min_value=18, max_value=80, value=35)
+    city_tier = st.selectbox("City Tier (1, 2, or 3)", [1, 2, 3])
+    duration_of_pitch = st.number_input("Duration of Pitch (min)", min_value=1.0, max_value=60.0, value=10.0, step=0.1)
+    monthly_income = st.number_input("Monthly Income", min_value=5000.0, max_value=100000.0, value=25000.0, step=100.0)
+    num_persons = st.number_input("Number of Persons Visiting", min_value=1, max_value=8, value=3)
+    num_followups = st.number_input("Number of Follow-ups", min_value=1, max_value=6, value=3)
+    num_trips = st.number_input("Number of Trips per Year", min_value=1.0, max_value=25.0, value=3.0, step=0.1)
+    num_children = st.number_input("Number of Children Visiting", min_value=0.0, max_value=5.0, value=0.0, step=1.0)
+    pitch_satisfaction = st.slider("Pitch Satisfaction Score (1-5)", 1, 5, 3)
 
-st.sidebar.header("Customer Information")
+with col2:
+    typeof_contact = st.selectbox("Type of Contact", ['Company Invited', 'Self Inquiry'])
+    occupation = st.selectbox("Occupation", ['Salaried', 'Small Business', 'Free Lancer', 'Large Business', 'Government'])
+    gender_raw = st.selectbox("Gender", ['Male', 'Female', 'Other'])
+    property_star = st.slider("Preferred Property Star (1-5)", 1.0, 5.0, 3.0, step=1.0)
+    marital_status = st.selectbox("Marital Status", ['Single', 'Married', 'Divorced', 'Unmarried'])
+    designation = st.selectbox("Designation", ['Manager', 'Executive', 'Senior Manager', 'AVP', 'VP', 'Director'])
+    passport = st.selectbox("Passport", [0, 1], format_func=lambda x: 'Yes' if x == 1 else 'No')
+    own_car = st.selectbox("Own Car", [0, 1], format_func=lambda x: 'Yes' if x == 1 else 'No')
+    product_pitched = st.selectbox("Product Pitched", ['Deluxe', 'Basic', 'Standard', 'Super Deluxe', 'King'])
 
-# Collect user inputs
-age = st.sidebar.number_input("Age", min_value=18, max_value=80, value=35)
 
-typeofcontact = st.sidebar.selectbox(
-    "Type of Contact",
-    options=["Self Enquiry", "Company Invited"],
-)
+# --- Data Transformation (Matches data_prep.py logic) ---
+if st.button("Predict Purchase") and model is not None:
+    
+    # 1. Create initial DataFrame
+    input_data = pd.DataFrame([{
+        'Age': age, 'CityTier': city_tier, 'DurationOfPitch': duration_of_pitch, 
+        'MonthlyIncome': monthly_income, 'NumberOfPersonVisiting': num_persons, 
+        'NumberOfFollowups': num_followups, 'NumberOfTrips': num_trips, 
+        'NumberOfChildrenVisiting': num_children, 'PitchSatisfactionScore': pitch_satisfaction, 
+        'TypeofContact': typeof_contact, 'Occupation': occupation, 'Gender': gender_raw, 
+        'PreferredPropertyStar': property_star, 'MaritalStatus': marital_status, 
+        'Designation': designation, 'Passport': passport, 'OwnCar': own_car, 
+        'ProductPitched': product_pitched
+    }])
 
-citytier = st.sidebar.selectbox("City Tier", options=[1, 2, 3], index=1)
+    # 2. Label Encoding for Gender: Fit on all possibilities including 'Other'
+    gender_encoder = LabelEncoder()
+    gender_encoder.fit(['Male', 'Female', 'Other'])
+    input_data['Gender'] = gender_encoder.transform(input_data['Gender'])
 
-duration_of_pitch = st.sidebar.number_input(
-    "Duration of Pitch (minutes)", min_value=0, max_value=60, value=10
-)
-
-occupation = st.sidebar.selectbox(
-    "Occupation",
-    options=["Salaried", "Free Lancer", "Small Business", "Large Business"],
-)
-
-gender = st.sidebar.selectbox("Gender", options=["Male", "Female", "Fe Male"])
-
-num_person_visiting = st.sidebar.selectbox(
-    "Number of Persons Visiting", options=[1, 2, 3, 4, 5], index=2
-)
-
-num_followups = st.sidebar.number_input(
-    "Number of Follow-ups", min_value=0, max_value=10, value=3
-)
-
-product_pitched = st.sidebar.selectbox(
-    "Product Pitched",
-    options=["Basic", "Standard", "Deluxe", "Super Deluxe", "King"],
-)
-
-preferred_property_star = st.sidebar.selectbox(
-    "Preferred Property Star", options=[3.0, 4.0, 5.0], index=0
-)
-
-marital_status = st.sidebar.selectbox(
-    "Marital Status", options=["Single", "Married", "Divorced", "Unmarried"]
-)
-
-number_of_trips = st.sidebar.number_input(
-    "Number of Trips (per year)", min_value=0, max_value=30, value=2
-)
-
-passport = st.sidebar.selectbox("Passport", options=[0, 1], index=1)
-
-pitch_satisfaction_score = st.sidebar.selectbox(
-    "Pitch Satisfaction Score", options=[1, 2, 3, 4, 5], index=2
-)
-
-own_car = st.sidebar.selectbox("Own Car", options=[0, 1], index=1)
-
-number_of_children_visiting = st.sidebar.selectbox(
-    "Number of Children Visiting", options=[0, 1, 2, 3], index=0
-)
-
-designation = st.sidebar.selectbox(
-    "Designation",
-    options=["Executive", "Manager", "Senior Manager", "AVP", "VP"],
-)
-
-monthly_income = st.sidebar.number_input(
-    "Monthly Income", min_value=1000.0, max_value=1000000.0, value=20000.0, step=500.0
-)
-
-# Create input DataFrame matching training features
-input_data = pd.DataFrame(
-    [
-        {
-            "Age": age,
-            "TypeofContact": typeofcontact,
-            "CityTier": citytier,
-            "DurationOfPitch": duration_of_pitch,
-            "Occupation": occupation,
-            "Gender": gender,
-            "NumberOfPersonVisiting": num_person_visiting,
-            "NumberOfFollowups": num_followups,
-            "ProductPitched": product_pitched,
-            "PreferredPropertyStar": preferred_property_star,
-            "MaritalStatus": marital_status,
-            "NumberOfTrips": number_of_trips,
-            "Passport": passport,
-            "PitchSatisfactionScore": pitch_satisfaction_score,
-            "OwnCar": own_car,
-            "NumberOfChildrenVisiting": number_of_children_visiting,
-            "Designation": designation,
-            "MonthlyIncome": monthly_income,
-        }
+    # 3. One-Hot Encoding
+    categorical_cols_ohe = [
+        'Occupation', 'Designation', 'MaritalStatus', 'ProductPitched', 'TypeofContact'
     ]
-)
+    input_data_ohe = pd.get_dummies(input_data, columns=categorical_cols_ohe, drop_first=True)
 
-st.subheader("Input Summary")
-st.write(input_data)
+    # 4. Column Alignment (CRITICAL: Must match the features of Xtrain used during model training)
+    try:
+        # Get the feature names from the model's signature (best practice)
+        model_feature_names = [col['name'] for col in model.metadata.get_model_input_schema().to_dict()['inputs']]
+        
+        # Filter and reorder the input data to match the model's feature list
+        final_input_df = input_data_ohe.reindex(columns=model_feature_names, fill_value=0)
+        
+        # Prediction
+        prediction_proba = model.predict(final_input_df)[0]
+        # Use a simple 0.5 threshold for final prediction
+        prediction = 1 if prediction_proba >= 0.5 else 0 
 
-if st.button("Predict Package Purchase"):
-    prediction = model.predict(input_data)[0]
-    prob = model.predict_proba(input_data)[0, 1]
+        result = "Will likely purchase the package" if prediction == 1 else "Will likely NOT purchase the package"
+        
+        st.subheader("Prediction Result:")
+        if prediction == 1:
+            st.success(f"The model predicts: **{result}** (Likelihood: {prediction_proba:.2f})")
+        else:
+            st.info(f"The model predicts: **{result}** (Likelihood: {prediction_proba:.2f})")
 
-    if prediction == 1:
-        st.success(f"The model predicts that the customer is **likely to purchase** the package. (Probability: {{prob:.2%}})")
-    else:
-        st.info(f"The model predicts that the customer is **unlikely to purchase** the package. (Probability: {{prob:.2%}})")
-
-st.caption("Model source: Hugging Face Hub repo `bhumitps/MLops`.")
+    except Exception as e:
+        st.error(f"An error occurred during prediction: {e}")
+        st.warning("Prediction failed. This is often due to a feature mismatch between the application and the trained model.")

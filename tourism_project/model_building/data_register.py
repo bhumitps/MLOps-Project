@@ -1,35 +1,32 @@
-
-"""Register the local tourism dataset on Hugging Face Hub as a dataset repo.
-
-This script:
-- Ensures the dataset repo exists (creates it if needed).
-- Uploads the local 'tourism_project/data' folder (containing tourism.csv) to the repo.
-"""
-
-from huggingface_hub.utils import RepositoryNotFoundError, HfHubHTTPError
-from huggingface_hub import HfApi, create_repo
+# for data manipulation
+import pandas as pd
+# for os functions
 import os
+# for hugging face space authentication to upload files
+from huggingface_hub import HfApi
 
-repo_id = "bhumitps/MLops"
-repo_type = "dataset"
+# Define constants for file path and repository details
+# Reads the file from the project data directory
+FILE_PATH = "tourism_project/data/tourism.csv" 
+REPO_ID = "bhumitps/MLops" 
+REPO_TYPE = "dataset"
 
-# Initialize API client
-api = HfApi(token=os.getenv("HF_TOKEN"))
+# Check if the file exists before proceeding
+if not os.path.exists(FILE_PATH):
+    raise FileNotFoundError(f"Source file not found at: {FILE_PATH}")
 
-# Step 1: Check if the dataset exists
-try:
-    api.repo_info(repo_id=repo_id, repo_type=repo_type)
-    print(f"Dataset '{{repo_id}}' already exists. Using it.")
-except RepositoryNotFoundError:
-    print(f"Dataset '{{repo_id}}' not found. Creating new dataset...")
-    create_repo(repo_id=repo_id, repo_type=repo_type, private=False)
-    print(f"Dataset '{{repo_id}}' created.")
+# Initialize HfApi with the token from the environment variable
+api = HfApi(token=os.getenv("HF_TOKEN")) 
 
-# Step 2: Upload local data folder to Hugging Face dataset
-api.upload_folder(
-    folder_path="tourism_project/data",  # should contain tourism.csv
-    repo_id=repo_id,
-    repo_type=repo_type,
+# Upload the file
+print(f"Uploading {FILE_PATH} to {REPO_ID}...")
+
+# THIS IS THE CRITICAL FIX: Use upload_file for a single file.
+api.upload_file( 
+    path_or_fileobj=FILE_PATH,
+    path_in_repo=FILE_PATH.split("/")[-1], # tourism.csv
+    repo_id=REPO_ID,
+    repo_type=REPO_TYPE,
 )
 
-print("Local tourism data successfully registered on Hugging Face!")
+print(f"Dataset successfully registered to Hugging Face Hub: hf://datasets/{REPO_ID}/tourism.csv")

@@ -1,76 +1,97 @@
-
-"""Data preparation script for the Tourism package prediction project.
-
-Steps:
-1. Load the raw tourism.csv file from the local data folder.
-2. Clean and prepare the dataset (drop unused columns, handle missing values).
-3. Split the data into train and test sets.
-4. Save the processed train/test splits to CSV files.
-5. Upload the processed files to the Hugging Face dataset repo.
-"""
-
-import os
+# for data manipulation
 import pandas as pd
+# for creating a folder
+import os
+# for data preprocessing and pipeline creation
 from sklearn.model_selection import train_test_split
+# for converting text data in to numerical representation
+from sklearn.preprocessing import LabelEncoder
+# for hugging face space authentication to upload files
 from huggingface_hub import HfApi
 
-# Constants
-RAW_DATA_PATH = "tourism_project/data/tourism.csv"
-PROCESSED_DIR = "tourism_project/processed_data"
-TARGET_COL = "ProdTaken"
-DATASET_REPO_ID = "bhumitps/MLops"
-
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-
-# Initialize Hugging Face API client
+# Define constants for the dataset and output paths
 api = HfApi(token=os.getenv("HF_TOKEN"))
+DATASET_PATH = "hf://datasets/bhumitps/MLops/tourism.csv"
+df = pd.read_csv(DATASET_PATH)
+print("Dataset loaded successfully.")
 
-# 1. Load raw data
-if not os.path.exists(RAW_DATA_PATH):
-    raise FileNotFoundError(f"Could not find input file at {RAW_DATA_PATH}. "
-                            "Please ensure 'tourism.csv' is placed in tourism_project/data.")
+# Drop the unique identifier
+df.drop(columns=['CustomerID'], inplace=True)
 
-df = pd.read_csv(RAW_DATA_PATH)
+# --- Impute Missing Values ---
+# Impute missing 'Age' with the median
+median_age = df['Age'].median()
+df['Age'].fillna(median_age, inplace=True)
 
-# 2. Basic cleaning
-# Drop columns that are identifiers or not useful for prediction
-cols_to_drop = ["Unnamed: 0", "CustomerID"]
-df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+# Impute missing 'MonthlyIncome' with the median
+median_income = df['MonthlyIncome'].median()
+df['MonthlyIncome'].fillna(median_income, inplace=True)
 
-# Drop rows where target is missing (if any)
-df = df.dropna(subset=[TARGET_COL])
+# Impute missing 'NumberOfChildrenVisiting' with the mode
+mode_children = df['NumberOfChildrenVisiting'].mode()[0]
+df['NumberOfChildrenVisiting'].fillna(mode_children, inplace=True)
 
-# Separate features and target
-X = df.drop(columns=[TARGET_COL])
-y = df[TARGET_COL]
+# Impute missing 'PreferredPropertyStar' with the mode
+mode_property_star = df['PreferredPropertyStar'].mode()[0]
+df['PreferredPropertyStar'].fillna(mode_property_star, inplace=True)
 
-# 3. Train-test split
-X_train, X_test, y_train, y_test = train_test_split(
+# Impute missing 'TypeofContact' with mode
+mode_typeofcontact = df['TypeofContact'].mode()[0]
+df['TypeofContact'].fillna(mode_typeofcontact, inplace=True)
+
+# Impute missing 'Gender' with mode
+mode_gender = df['Gender'].mode()[0]
+df['Gender'].fillna(mode_gender, inplace=True)
+
+# Impute missing 'DurationOfPitch' with median
+median_duration = df['DurationOfPitch'].median()
+df['DurationOfPitch'].fillna(median_duration, inplace=True)
+
+# --- Encode Categorical Features ---
+# Label Encoding for binary categorical features (Gender: Male/Female)
+label_encoder_gender = LabelEncoder()
+# Fit and transform, including 'Other' which might be present
+df['Gender'] = label_encoder_gender.fit_transform(df['Gender'])
+
+# One-Hot Encoding for multi-class categorical features
+categorical_cols_ohe = [
+    'Occupation',
+    'Designation',
+    'MaritalStatus',
+    'ProductPitched',
+    'TypeofContact'
+]
+
+df = pd.get_dummies(df, columns=categorical_cols_ohe, drop_first=True)
+
+# Target column
+target_col = 'ProdTaken'
+
+# Split into X (features) and y (target)
+X = df.drop(columns=[target_col])
+y = df[target_col]
+
+# Perform stratified train-test split
+Xtrain, Xtest, ytrain, ytest = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# 4. Save processed data
-X_train_path = os.path.join(PROCESSED_DIR, "Xtrain.csv")
-X_test_path = os.path.join(PROCESSED_DIR, "Xtest.csv")
-y_train_path = os.path.join(PROCESSED_DIR, "ytrain.csv")
-y_test_path = os.path.join(PROCESSED_DIR, "ytest.csv")
+# Save the datasets locally
+Xtrain.to_csv("Xtrain.csv", index=False)
+Xtest.to_csv("Xtest.csv", index=False)
+ytrain.to_csv("ytrain.csv", index=False)
+ytest.to_csv("ytest.csv", index=False)
 
-X_train.to_csv(X_train_path, index=False)
-X_test.to_csv(X_test_path, index=False)
-y_train.to_csv(y_train_path, index=False)
-y_test.to_csv(y_test_path, index=False)
 
-print("Processed data saved to:", PROCESSED_DIR)
+files = ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]
 
-# 5. Upload processed data to Hugging Face dataset repo
-files_to_upload = [X_train_path, X_test_path, y_train_path, y_test_path]
-
-for file_path in files_to_upload:
+# Upload the split files to Hugging Face
+for file_path in files:
     api.upload_file(
         path_or_fileobj=file_path,
-        path_in_repo=os.path.basename(file_path),
-        repo_id=DATASET_REPO_ID,
+        path_in_repo=file_path.split("/")[-1],  # just the filename
+        repo_id="bhumitps/MLops",
         repo_type="dataset",
     )
 
-print("Processed data uploaded to Hugging Face dataset:", DATASET_REPO_ID)
+print("Data preparation complete and files uploaded to Hugging Face.")
