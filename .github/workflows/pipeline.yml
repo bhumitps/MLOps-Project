@@ -123,4 +123,5 @@ jobs:
           echo "Pushing image: $IMAGE_NAME"
           
           cd tourism_project/deployment
-          docker build -t $IMAGE_NAME . && docker push $IMAGE_NAME
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
