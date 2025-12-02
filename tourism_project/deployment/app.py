@@ -9,7 +9,7 @@ from huggingface_hub import hf_hub_download
 
 st.set_page_config(page_title="Tourism Package Purchase Predictor", layout="centered")
 
-st.title("🧳 Tourism Package Purchase Prediction App")
+st.title("Tourism Package Purchase Prediction App")
 st.write(
     """
 This app predicts whether a customer is likely to **purchase the tourism package** (`ProdTaken`)
