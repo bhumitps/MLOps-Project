@@ -105,7 +105,7 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: registry.hf.space
-          username: bhumitps
+          username: bhumitps/mlops
           password: ${{ secrets.HF_TOKEN }}
 
       - name: Build and Push Docker Image
