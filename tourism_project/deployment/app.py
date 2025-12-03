@@ -47,16 +47,16 @@ with col2:
 
 # --- Data Transformation (Matches data_prep.py logic) ---
 if st.button("Predict Purchase") and model is not None:
-    
+
     # 1. Create initial DataFrame
     input_data = pd.DataFrame([{
-        'Age': age, 'CityTier': city_tier, 'DurationOfPitch': duration_of_pitch, 
-        'MonthlyIncome': monthly_income, 'NumberOfPersonVisiting': num_persons, 
-        'NumberOfFollowups': num_followups, 'NumberOfTrips': num_trips, 
-        'NumberOfChildrenVisiting': num_children, 'PitchSatisfactionScore': pitch_satisfaction, 
-        'TypeofContact': typeof_contact, 'Occupation': occupation, 'Gender': gender_raw, 
-        'PreferredPropertyStar': property_star, 'MaritalStatus': marital_status, 
-        'Designation': designation, 'Passport': passport, 'OwnCar': own_car, 
+        'Age': age, 'CityTier': city_tier, 'DurationOfPitch': duration_of_pitch,
+        'MonthlyIncome': monthly_income, 'NumberOfPersonVisiting': num_persons,
+        'NumberOfFollowups': num_followups, 'NumberOfTrips': num_trips,
+        'NumberOfChildrenVisiting': num_children, 'PitchSatisfactionScore': pitch_satisfaction,
+        'TypeofContact': typeof_contact, 'Occupation': occupation, 'Gender': gender_raw,
+        'PreferredPropertyStar': property_star, 'MaritalStatus': marital_status,
+        'Designation': designation, 'Passport': passport, 'OwnCar': own_car,
         'ProductPitched': product_pitched
     }])
 
@@ -75,17 +75,17 @@ if st.button("Predict Purchase") and model is not None:
     try:
         # Get the feature names from the model's signature (best practice)
         model_feature_names = [col['name'] for col in model.metadata.get_model_input_schema().to_dict()['inputs']]
-        
+
         # Filter and reorder the input data to match the model's feature list
         final_input_df = input_data_ohe.reindex(columns=model_feature_names, fill_value=0)
-        
+
         # Prediction
         prediction_proba = model.predict(final_input_df)[0]
         # Use a simple 0.5 threshold for final prediction
-        prediction = 1 if prediction_proba >= 0.5 else 0 
+        prediction = 1 if prediction_proba >= 0.5 else 0
 
         result = "Will likely purchase the package" if prediction == 1 else "Will likely NOT purchase the package"
-        
+
         st.subheader("Prediction Result:")
         if prediction == 1:
             st.success(f"The model predicts: **{result}** (Likelihood: {prediction_proba:.2f})")
