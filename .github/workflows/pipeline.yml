@@ -64,7 +64,7 @@ jobs:
 
       - name: Model Training and Registration
         env:
-          MLFLOW_TRACKING_URI: ./mlruns        
+          MLFLOW_TRACKING_URI: ./mlruns
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
           MLFLOW_EXPERIMENT_NAME: bhumitps/amlops
         run: python tourism_project/model_building/train.py
@@ -73,7 +73,10 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: ./mlruns
           MLFLOW_TRACKING_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python tourism_project/model_building/transition_to_prod.py
+          MODEL_NAME: Tourism_Purchase_Predictor
+        run: |
+          pip install mlflow
+          python tourism_project/model_building/transition_to_prod.py
 
 
   model-deployment:
@@ -93,5 +96,4 @@ jobs:
       - name: Deploy to Hugging Face Space (Docker Space)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          python tourism_project/deployment/hosting.py
+        run: python tourism_project/deployment/hosting.py
