@@ -42,7 +42,7 @@ try:
         repo_type=REPO_TYPE,
         path_in_repo="",   # upload to root of the Space
     )
-    print("\nDeployment files successfully uploaded to Hugging Face Space.")
-    print(f"Live at: https://huggingface.co/spaces/{REPO_ID}")
+    print("\n Deployment files successfully uploaded to Hugging Face Space.")
+    print(f" Live at: https://huggingface.co/spaces/{REPO_ID}")
 except Exception as e:
-    print(f"\nDeployment failed during upload: {e}")
+    print(f"\n Deployment failed during upload: {e}")
